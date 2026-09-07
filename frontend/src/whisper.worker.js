@@ -21,7 +21,12 @@ async function getPipeline(model, device) {
   }
   asr = await pipeline('automatic-speech-recognition', model, {
     device,
-    dtype: device === 'webgpu' ? 'fp32' : 'q8',
+    // 'q8' triggers a block-quantization scheme (MatMulNBits) some
+    // onnxruntime-web WASM builds can't fully load for these community
+    // exports ("Missing required scale" at session-create time). 'q4' is
+    // the widely-supported quantization level for the WASM path; WebGPU
+    // stays at full precision since it isn't the fallback path.
+    dtype: device === 'webgpu' ? 'fp32' : 'q4',
     progress_callback: (p) => {
       if (p.status === 'progress' && p.file?.endsWith('.onnx')) {
         self.postMessage({
