@@ -6,8 +6,8 @@ export default function SiteFooter() {
         server.
       </p>
       <nav className="site-footer-links">
-        <a href="/privacy.html">Privacy</a>
-        <a href="/terms.html">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
         <a href="mailto:tedevh8@gmail.com">Feedback</a>
       </nav>
       <p className="site-footer-fine">
