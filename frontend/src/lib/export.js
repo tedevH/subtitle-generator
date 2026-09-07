@@ -1,8 +1,16 @@
 // Burns subtitles into the video and muxes a real MP4, entirely in the browser.
 //
-// Frames come from seeking a <video> and drawing to a canvas, so any codec
+// Frames come from a <video> element and drawing to a canvas, so any codec
 // Chrome can play is a valid input -- no demuxer required. The subtitle is
 // drawn with the same drawSubtitle() the preview uses, so export is WYSIWYG.
+//
+// Frames are captured by playing the video through once, sequentially, and
+// grabbing each decoded frame via requestVideoFrameCallback. Seeking to every
+// output frame (the obvious alternative) forces the decoder to search for the
+// nearest keyframe and decode forward from scratch on every call -- on a
+// video with keyframes every second or two, exporting at 30fps means redoing
+// dozens of frames of decode work just to keep one. Sequential playback lets
+// the decoder do what it's actually fast at.
 
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { drawSubtitle } from './render.js'
@@ -160,15 +168,8 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
   const totalFrames = Math.max(1, Math.floor(duration * fps))
   const frameDuration = 1_000_000 / fps
 
-  for (let i = 0; i < totalFrames; i += 1) {
-    if (signal?.aborted) {
-      videoEncoder.close()
-      throw new Error('Export cancelled')
-    }
-
+  function encodeOutputFrame(i) {
     const time = i / fps
-    await seekTo(video, Math.min(time, duration - 1 / fps))
-
     ctx.drawImage(video, 0, 0, width, height)
 
     const index = activeCueIndex(cues, time)
@@ -183,18 +184,89 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
     // Keyframe every 2s keeps the file seekable.
     videoEncoder.encode(frame, { keyFrame: i % (fps * 2) === 0 })
     frame.close()
+  }
 
+  async function throttleEncoder() {
     // Don't outrun the encoder and balloon memory.
     while (videoEncoder.encodeQueueSize > 8) {
       await new Promise((r) => setTimeout(r, 5))
     }
+  }
 
+  function reportFrameProgress(i) {
     if (i % 5 === 0 || i === totalFrames - 1) {
       onProgress?.({
         phase: 'video',
         progress: (i + 1) / totalFrames,
         message: `Rendering frame ${i + 1} of ${totalFrames}`,
       })
+    }
+  }
+
+  if (typeof video.requestVideoFrameCallback === 'function') {
+    await new Promise((resolve, reject) => {
+      let nextIndex = 0
+      let settled = false
+
+      const finish = () => {
+        if (settled) return
+        settled = true
+        // Floating-point rounding between duration and fps can leave the
+        // very last output frame un-covered by any presented source frame;
+        // fill it in from whatever the video last showed.
+        while (nextIndex < totalFrames) {
+          encodeOutputFrame(nextIndex)
+          reportFrameProgress(nextIndex)
+          nextIndex += 1
+        }
+        video.pause()
+        resolve()
+      }
+
+      video.addEventListener('ended', finish, { once: true })
+
+      async function onVideoFrame(_now, metadata) {
+        if (settled) return
+        if (signal?.aborted) {
+          settled = true
+          video.pause()
+          reject(new Error('Export cancelled'))
+          return
+        }
+
+        while (nextIndex < totalFrames && nextIndex / fps <= metadata.mediaTime) {
+          encodeOutputFrame(nextIndex)
+          reportFrameProgress(nextIndex)
+          nextIndex += 1
+          await throttleEncoder()
+        }
+
+        if (nextIndex >= totalFrames) {
+          finish()
+          return
+        }
+
+        video.requestVideoFrameCallback(onVideoFrame)
+      }
+
+      video.requestVideoFrameCallback(onVideoFrame)
+      // Muted, so this has no audio-quality effect -- audio is encoded
+      // separately from the original file bytes below. Browsers cap the
+      // real decode rate at whatever the hardware can sustain regardless.
+      video.playbackRate = 16
+      video.play().catch(reject)
+    })
+  } else {
+    // Fallback for a WebCodecs browser that lacks requestVideoFrameCallback.
+    for (let i = 0; i < totalFrames; i += 1) {
+      if (signal?.aborted) {
+        videoEncoder.close()
+        throw new Error('Export cancelled')
+      }
+      await seekTo(video, Math.min(i / fps, duration - 1 / fps))
+      encodeOutputFrame(i)
+      await throttleEncoder()
+      reportFrameProgress(i)
     }
   }
 
