@@ -4,6 +4,8 @@ import { activeCueIndex } from '../lib/subtitles.js'
 
 const MIN_FONT_SIZE = 2
 const MAX_FONT_SIZE = 12
+const MIN_MAX_WIDTH = 30
+const MAX_MAX_WIDTH = 100
 
 /**
  * The video with a canvas overlay on top, plus a draggable box over the
@@ -26,7 +28,6 @@ export default function VideoStage({
   const canvasRef = useRef(null)
   const wrapRef = useRef(null)
   const boxRef = useRef(null)
-  const handleRef = useRef(null)
   const drawRef = useRef(null)
   const dragRef = useRef(null)
   const styleRef = useRef(style)
@@ -109,10 +110,27 @@ export default function VideoStage({
           positionX: clamp(drag.startPositionX + dxPct, 5, 95),
           positionY: clamp(drag.startPositionY + dyPct, 5, 95),
         })
-      } else {
+      } else if (drag.mode === 'resize-x') {
+        // Right-edge handle: width only, font size untouched.
+        onStyleChange({
+          ...styleRef.current,
+          maxWidth: clamp(drag.startMaxWidth + dxPct, MIN_MAX_WIDTH, MAX_MAX_WIDTH),
+        })
+      } else if (drag.mode === 'resize-y') {
+        // Bottom-edge handle: font size only, width untouched.
         onStyleChange({
           ...styleRef.current,
           fontSize: clamp(drag.startFontSize + dyPct * 0.6, MIN_FONT_SIZE, MAX_FONT_SIZE),
+        })
+      } else if (drag.mode === 'resize-corner') {
+        // Corner handle: scale both together by the same ratio, so the
+        // width-to-size relationship (characters per line) stays constant --
+        // a true proportional resize, not independent width/size drags.
+        const scale = 1 + (dyPct * 0.6) / drag.startFontSize
+        onStyleChange({
+          ...styleRef.current,
+          fontSize: clamp(drag.startFontSize * scale, MIN_FONT_SIZE, MAX_FONT_SIZE),
+          maxWidth: clamp(drag.startMaxWidth * scale, MIN_MAX_WIDTH, MAX_MAX_WIDTH),
         })
       }
     }
@@ -140,6 +158,7 @@ export default function VideoStage({
       startPositionX: styleRef.current.positionX ?? 50,
       startPositionY: styleRef.current.positionY,
       startFontSize: styleRef.current.fontSize,
+      startMaxWidth: styleRef.current.maxWidth,
     }
   }
 
@@ -166,10 +185,19 @@ export default function VideoStage({
           title="Drag to reposition"
         >
           <span
-            ref={handleRef}
-            className="caption-resize-handle"
-            onPointerDown={(e) => beginDrag(e, 'resize')}
-            title="Drag to resize"
+            className="caption-handle handle-right"
+            onPointerDown={(e) => beginDrag(e, 'resize-x')}
+            title="Drag to change width"
+          />
+          <span
+            className="caption-handle handle-bottom"
+            onPointerDown={(e) => beginDrag(e, 'resize-y')}
+            title="Drag to change size"
+          />
+          <span
+            className="caption-handle handle-corner"
+            onPointerDown={(e) => beginDrag(e, 'resize-corner')}
+            title="Drag to resize proportionally"
           />
         </div>
       )}

@@ -132,23 +132,46 @@ header .sub {
 .caption-drag-box:active {
   border-color: var(--accent);
 }
-.caption-resize-handle {
+.caption-handle {
   position: absolute;
+  background: var(--accent);
+  border: 2px solid #fff;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.caption-drag-box:hover .caption-handle,
+.caption-drag-box:active .caption-handle {
+  opacity: 1;
+}
+/* Right edge: width only. */
+.handle-right {
+  right: -6px;
+  top: 50%;
+  width: 10px;
+  height: 22px;
+  border-radius: 4px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+/* Bottom edge: font size only. */
+.handle-bottom {
+  bottom: -6px;
+  left: 50%;
+  width: 22px;
+  height: 10px;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+/* Corner: both together, proportionally. */
+.handle-corner {
   right: -7px;
   bottom: -7px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #fff;
   cursor: nwse-resize;
-  touch-action: none;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-.caption-drag-box:hover .caption-resize-handle,
-.caption-drag-box:active .caption-resize-handle {
-  opacity: 1;
 }
 
 /* --- panels --- */
