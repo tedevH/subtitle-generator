@@ -8,6 +8,7 @@ export default function SiteFooter() {
       <nav className="site-footer-links">
         <a href="/privacy.html">Privacy</a>
         <a href="/terms.html">Terms</a>
+        <a href="mailto:tedevh8@gmail.com">Feedback</a>
       </nav>
       <p className="site-footer-fine">
         Speech recognition powered by the open-source Whisper model. Not affiliated with or
