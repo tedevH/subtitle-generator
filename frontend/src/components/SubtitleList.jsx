@@ -17,10 +17,24 @@ export default function SubtitleList({
 
   // Follow playback, but only when the user isn't typing in a field.
   useEffect(() => {
+    const list = listRef.current
     const node = activeRef.current
-    if (!node) return
+    if (!list || !node) return
     if (document.activeElement?.closest('.cue')) return
-    node.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+
+    // Scroll only this list, never the page. node.scrollIntoView() walks
+    // every scrollable ancestor -- including the whole document -- which
+    // yanked the page toward this panel on every cue change during playback.
+    const nodeTop = node.offsetTop
+    const nodeBottom = nodeTop + node.offsetHeight
+    const viewTop = list.scrollTop
+    const viewBottom = viewTop + list.clientHeight
+
+    if (nodeTop < viewTop) {
+      list.scrollTo({ top: nodeTop, behavior: 'smooth' })
+    } else if (nodeBottom > viewBottom) {
+      list.scrollTo({ top: nodeBottom - list.clientHeight, behavior: 'smooth' })
+    }
   }, [activeIndex])
 
   if (cues.length === 0) {
