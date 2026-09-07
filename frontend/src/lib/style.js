@@ -32,10 +32,14 @@ export const DEFAULT_STYLE = {
   pop: false,
 
   // Short-form apps overlay their own UI along the bottom, so sit above it.
+  positionX: 50,
   positionY: 74,
   maxWidth: 84,
 }
 
+// The Google Fonts loaded in index.html. Keep this list in sync with the
+// families requested there -- a font picked here that isn't actually loaded
+// silently falls back to the browser default instead of erroring.
 export const FONT_OPTIONS = [
   { label: 'Sans (system)', value: "system-ui, 'Segoe UI', Roboto, sans-serif" },
   { label: 'Inter', value: "'Inter', system-ui, sans-serif" },
@@ -44,6 +48,15 @@ export const FONT_OPTIONS = [
   { label: 'Impact', value: "Impact, 'Arial Black', sans-serif" },
   { label: 'Georgia (serif)', value: 'Georgia, "Times New Roman", serif' },
   { label: 'Monospace', value: 'ui-monospace, Menlo, Consolas, monospace' },
+  { label: 'Anton', value: "'Anton', 'Arial Black', sans-serif" },
+  { label: 'Bebas Neue', value: "'Bebas Neue', 'Arial Narrow', sans-serif" },
+  { label: 'Archivo Black', value: "'Archivo Black', 'Arial Black', sans-serif" },
+  { label: 'Montserrat', value: "'Montserrat', system-ui, sans-serif" },
+  { label: 'Poppins', value: "'Poppins', system-ui, sans-serif" },
+  { label: 'Oswald', value: "'Oswald', 'Arial Narrow', sans-serif" },
+  { label: 'Bangers', value: "'Bangers', 'Comic Sans MS', cursive" },
+  { label: 'Permanent Marker', value: "'Permanent Marker', cursive" },
+  { label: 'Caveat', value: "'Caveat', cursive" },
 ]
 
 /**

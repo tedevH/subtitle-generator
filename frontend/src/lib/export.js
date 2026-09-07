@@ -113,6 +113,19 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
     throw new Error('Could not determine video dimensions or duration')
   }
 
+  // Canvas text silently falls back to a default font if a web font (e.g. a
+  // Google Font) hasn't finished loading yet. The frame loop below draws
+  // fast and sequentially, so without this a font that loads mid-export
+  // would produce inconsistent frames -- or the whole export in the wrong
+  // font if it never got the chance to load at all.
+  if (document.fonts?.load) {
+    try {
+      await document.fonts.load(`${style.fontWeight} 48px ${style.fontFamily}`)
+    } catch {
+      /* best effort -- worst case is a fallback font, not a crash */
+    }
+  }
+
   const bitrate = bitrateFor(width, height)
   const codec = await pickVideoCodec({ width, height, framerate: fps, bitrate })
   if (!codec) throw new Error('No supported H.264 encoder configuration')

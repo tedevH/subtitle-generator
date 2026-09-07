@@ -198,6 +198,7 @@ export default function App() {
                 videoUrl={videoUrl}
                 cues={cues}
                 style={style}
+                onStyleChange={setStyle}
                 currentTime={currentTime}
                 meta={meta}
                 onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}

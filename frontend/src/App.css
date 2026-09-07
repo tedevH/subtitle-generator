@@ -120,6 +120,36 @@ header .sub {
   height: 100%;
   pointer-events: none;
 }
+.caption-drag-box {
+  position: absolute;
+  border: 1.5px dashed transparent;
+  border-radius: 6px;
+  cursor: move;
+  touch-action: none;
+  transition: border-color 0.1s;
+}
+.caption-drag-box:hover,
+.caption-drag-box:active {
+  border-color: var(--accent);
+}
+.caption-resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.caption-drag-box:hover .caption-resize-handle,
+.caption-drag-box:active .caption-resize-handle {
+  opacity: 1;
+}
 
 /* --- panels --- */
 .panel {

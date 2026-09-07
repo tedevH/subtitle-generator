@@ -125,7 +125,17 @@ export default function StylePanel({ style, onChange }) {
 
       <label className="field">
         <span>Font</span>
-        <select value={style.fontFamily} onChange={(e) => set({ fontFamily: e.target.value })}>
+        <select
+          value={style.fontFamily}
+          onChange={(e) => {
+            const fontFamily = e.target.value
+            // Load it now rather than waiting for the next canvas draw to
+            // trigger it -- otherwise the first frame or two after picking a
+            // font briefly flashes the fallback while it loads.
+            document.fonts?.load?.(`${style.fontWeight} 48px ${fontFamily}`)
+            set({ fontFamily })
+          }}
+        >
           {FONT_OPTIONS.map((f) => (
             <option key={f.label} value={f.value}>
               {f.label}
@@ -147,7 +157,11 @@ export default function StylePanel({ style, onChange }) {
         suffix="em"
         onChange={(v) => set({ letterSpacing: v })}
       />
+      <Slider label="Horizontal position" suffix="%" min={5} max={95} step={1} value={style.positionX ?? 50} onChange={(v) => set({ positionX: v })} />
       <Slider label="Vertical position" suffix="%" min={5} max={95} step={1} value={style.positionY} onChange={(v) => set({ positionY: v })} />
+      <p className="note" style={{ marginTop: -4, marginBottom: 12 }}>
+        Tip: drag the caption directly on the video to move or resize it.
+      </p>
       <Slider label="Max width" suffix="%" min={30} max={100} step={1} value={style.maxWidth} onChange={(v) => set({ maxWidth: v })} />
 
       <div className="row">
