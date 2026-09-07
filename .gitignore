@@ -1,0 +1,11 @@
+node_modules/
+dist/
+
+# Local media and generated artifacts
+*.webm
+*.mp4
+*.wav
+*.srt
+*.vtt
+__pycache__/
+.venv/
