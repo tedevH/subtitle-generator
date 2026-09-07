@@ -145,11 +145,22 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
     fastStart: 'in-memory',
   })
 
+  // Encoder `error` callbacks are fired by the browser's own machinery, not
+  // by code we're awaiting -- throwing inside one does NOT reject any
+  // promise here. Without this flag, an encoder failure mid-export left the
+  // encodeQueueSize throttle loops below spinning forever, waiting on a
+  // queue that would never drain again: a silent, permanent hang instead of
+  // a visible error.
+  let fatalError = null
+  function onEncoderError(prefix) {
+    return (e) => {
+      if (!fatalError) fatalError = new Error(`${prefix}: ${e.message || e}`)
+    }
+  }
+
   const videoEncoder = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => {
-      throw e
-    },
+    error: onEncoderError('Video encoder error'),
   })
   videoEncoder.configure({
     codec,
@@ -189,6 +200,7 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
   async function throttleEncoder() {
     // Don't outrun the encoder and balloon memory.
     while (videoEncoder.encodeQueueSize > 8) {
+      if (fatalError) throw fatalError
       await new Promise((r) => setTimeout(r, 5))
     }
   }
@@ -233,6 +245,12 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
           reject(new Error('Export cancelled'))
           return
         }
+        if (fatalError) {
+          settled = true
+          video.pause()
+          reject(fatalError)
+          return
+        }
 
         while (nextIndex < totalFrames && nextIndex / fps <= metadata.mediaTime) {
           encodeOutputFrame(nextIndex)
@@ -263,6 +281,7 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
         videoEncoder.close()
         throw new Error('Export cancelled')
       }
+      if (fatalError) throw fatalError
       await seekTo(video, Math.min(i / fps, duration - 1 / fps))
       encodeOutputFrame(i)
       await throttleEncoder()
@@ -270,7 +289,12 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
     }
   }
 
+  // The encoder can still be draining several frames here with nothing to
+  // show for it on screen -- without this the UI sits at "100%" for however
+  // long that takes, which reads as stuck even when it isn't.
+  onProgress?.({ phase: 'video', progress: 1, message: 'Finishing video encode…' })
   await videoEncoder.flush()
+  if (fatalError) throw fatalError
   videoEncoder.close()
 
   // --- encode audio ---
@@ -279,9 +303,7 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
 
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error: (e) => {
-        throw e
-      },
+      error: onEncoderError('Audio encoder error'),
     })
     audioEncoder.configure({
       codec: audioChoice.codec,
@@ -316,12 +338,15 @@ export async function exportVideo({ file, cues, style, fps = 30, onProgress, sig
       data.close()
 
       while (audioEncoder.encodeQueueSize > 16) {
+        if (fatalError) throw fatalError
         await new Promise((r) => setTimeout(r, 5))
       }
       onProgress?.({ phase: 'audio', progress: offset / total, message: 'Encoding audio' })
     }
 
+    onProgress?.({ phase: 'audio', progress: 1, message: 'Finishing audio encode…' })
     await audioEncoder.flush()
+    if (fatalError) throw fatalError
     audioEncoder.close()
   }
 
